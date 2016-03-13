@@ -1,0 +1,7 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+inst/extdata/*rds
+inst/extdata/*sqlite3
+inst/scripts/*fa.gz
