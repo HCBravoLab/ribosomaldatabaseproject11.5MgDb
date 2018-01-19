@@ -1,21 +1,21 @@
-Package: ribosonaldatabaseproject11.4MgDb
-Title: Ribosomal Database Project 16S rRNA release 11.4 Annotation
+Package: ribosonaldatabaseproject11.5MgDb
+Title: Ribosomal Database Project 16S rRNA release 11.5 Annotation
     Data
-Version: 0.0.0.9
+Version: 0.99.1
 Author: Nathan D. Olson <nolson@umias.umd.edu>,
     Joseph Nathaniel Paulson,
     Hector Corrada-Bravo
 Maintainer: Nathan D. Olson <nolson@umiacs.umd.edu>
 Description: Metagenome annotation package with for the Ribosomal Database Project 16S rRNA
-    Database version 11.4, Bacterial and Archeal sequences. Contains a MgDb-class object, defined
+    Database version 11.5, Bacterial and Archeal sequences. Contains a MgDb-class object, defined
     in the metagenomeFeatures package.
 Depends:
-    R (>= 3.2.0)
+    R (>= 3.4.0)
 License: Artistic-2.0
 LazyData: true
 Imports:
-    metagenomeFeatures
-URL: https://github.com/HCBravoLab/ribosonaldatabaseproject11.4
-BugReports: https://github.com/HCBravoLab/ribosonaldatabaseproject11.4/issues
+    metagenomeFeatures (>= 1.9.9)
+URL: https://github.com/HCBravoLab/ribosonaldatabaseproject11.5
+BugReports: https://github.com/HCBravoLab/ribosonaldatabaseproject11.5/issues
 biocViews: AnnotationData, Microbiome, Metagenomics, Sequencing
-RoxygenNote: 5.0.1
+RoxygenNote: 6.0.1

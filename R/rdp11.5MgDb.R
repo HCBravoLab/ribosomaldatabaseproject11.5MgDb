@@ -1,5 +1,5 @@
 ###############################################
-#'  MgDb-class object for greengenes version 13.8 99 OTU
+#'  MgDb-class object for RPD version 11.4
 #'
 #' rdp11.4MgDb is a MgDb-class object with
 #' sequence and taxonomic data for the  Ribosomal Database Project Bacteria and Archaea 16S rRNA
