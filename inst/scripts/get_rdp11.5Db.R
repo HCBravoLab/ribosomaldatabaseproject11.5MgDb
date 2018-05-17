@@ -1,4 +1,4 @@
-################################################################################
+###############################################################################
 ## Code to generate ribosomal database project annotation package extdata the
 ## species level id includes a mix of species and sub-species names, e.g.
 ## clones, strains, ect.
@@ -50,7 +50,7 @@ download_db(seq_archaea_url, seq_archaea_file, seq_archaea_md5)
 ## RNAcentral data
 download_db(rnacentral_url, rnacentral_file, rnacentral_md5)
 
-### Create SQLite DB with Taxa and Seq Data ####################################
+### Create SQLite DB with Taxa and Seq Data ###################################
 ### Parse RDP database files
 get_rdp_lineage <- function(rdp_names, rdp_ids){
     rdp_lineage <- rdp_names %>% map(2) %>%
@@ -165,7 +165,7 @@ metagenomeFeatures::make_mgdb_sqlite(db_name = "rdp11.5",
                                      taxa_tbl = taxa_tbl,
                                      seqs = seqs)
 
-### Database Metadata ##########################################################
+### Database Metadata #########################################################
 rdp_metadata <- list(ACCESSION_DATE = date(),
                  URL = "https://rdp.cme.msu.edu",
                  DB_TYPE_NAME = "RDP",

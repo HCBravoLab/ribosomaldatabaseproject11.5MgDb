@@ -9,10 +9,14 @@
     metadata_file <- system.file("extdata", "rdp11.5_metadata.RDS",
                                  package = pkgname, lib.loc = libname)
 
-    ## Note no tree for rdp11.4
+    ## Note no tree for rdp11.5
 
     if (!file.exists(db_file) | !file.exists(metadata_file)) {
-        packageStartupMessage("RDP 11.4 database data not present, use `get_rdp11.5Db` In the package inst/scripts directory to download the database into the package inst/extdata/ directory and reinstall the package")
+        packageStartupMessage("RDP 11.5 database data not present,
+                              use `get_rdp11.5Db` In the package inst/scripts
+                              directory to download the database into the
+                              package inst/extdata/ directory and reinstall
+                              the package")
     }
 }
 
