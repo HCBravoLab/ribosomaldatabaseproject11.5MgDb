@@ -10,7 +10,7 @@ library(Biostrings)
 library(metagenomeFeatures) ## Needed for the make_mgdb_sqlite function
 
 ## Database URL
-db_root_url <- "https://rdp.cme.msu.edu/download"
+db_root_url <- "http://rdp.cme.msu.edu/download"
 seq_bacteria_url <- paste0(db_root_url, "/current_Bacteria_unaligned.fa.gz")
 seq_archaea_url <- paste0(db_root_url, "/current_Archaea_unaligned.fa.gz")
 
