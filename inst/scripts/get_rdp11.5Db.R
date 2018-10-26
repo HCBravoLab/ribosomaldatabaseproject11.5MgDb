@@ -102,17 +102,24 @@ parse_rdp <- function(seq){
         c(ids, lineage)
     })
 
+    get_feature <- function(rr, feature) {
+        if(isTRUE(which(rr %in% feature) > 0)) {
+            return(rr[which(rr %in% feature) -1])
+        }
+        NULL
+    }
+
     ids <- sapply(rdp_ids, function(rdpn) rdpn[1])
     species <- sapply(rdp_ids, function(rdpn) rdpn[2])
     rootrank <- sapply(rdp_ids, function(rdpn) rdpn[3])
-    domain <- sapply(rdp_ids, function(rdpn) rdpn[5])
-    phylum <- sapply(rdp_ids, function(rdpn) rdpn[7])
-    class <- sapply(rdp_ids, function(rdpn) rdpn[9])
-    subclass <- sapply(rdp_ids, function(rdpn) rdpn[11])
-    ord <- sapply(rdp_ids, function(rdpn) rdpn[13])
-    suborder <- sapply(rdp_ids, function(rdpn) rdpn[15])
-    family <- sapply(rdp_ids, function(rdpn) rdpn[17])
-    genus <- sapply(rdp_ids, function(rdpn) rdpn[19])
+    domain <- sapply(rdp_ids, function(rdpn) get_feature(rdpn, "domain"))
+    phylum <- sapply(rdp_ids, function(rdpn) get_feature(rdpn, "phylum"))
+    class <- sapply(rdp_ids, function(rdpn) get_feature(rdpn, "class"))
+    subclass <- sapply(rdp_ids, function(rdpn) get_feature(rdpn, "subclass"))
+    ord <- sapply(rdp_ids, function(rdpn) get_feature(rdpn, "order"))
+    suborder <- sapply(rdp_ids, function(rdpn) get_feature(rdpn, "suborder"))
+    family <- sapply(rdp_ids, function(rdpn) get_feature(rdpn, "family"))
+    genus <- sapply(rdp_ids, function(rdpn) get_feature(rdpn, "genus"))
 
     data.frame(Keys=ids, rootrank=rootrank, domain=domain, phylum=phylum, class=class, subclass=subclass,
                ord=ord, suborder=suborder, family=family, genus=genus, species=species)
@@ -149,7 +156,7 @@ taxa_tbl$Keys <- as.character(taxa_tbl$Keys)
 taxa_tbl <- dplyr::left_join(taxa_tbl, rnacentral_ids)
 
 ## Creating MgDb formated sqlite database
-metagenomeFeatures::make_mgdb_sqlite(db_name = "rdp11.5",
+metagenomeFeatures:::make_mgdb_sqlite(db_name = "rdp11.5",
                                      db_file = db_file,
                                      taxa_tbl = taxa_tbl,
                                      seqs = seqs)
