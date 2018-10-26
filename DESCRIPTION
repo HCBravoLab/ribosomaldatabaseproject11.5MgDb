@@ -12,7 +12,6 @@ Description: Metagenome annotation package with for the
 Depends:
     R (>= 3.5)
 License: Artistic-2.0
-LazyData: true
 Imports:
     metagenomeFeatures (>= 1.99.9)
 URL: https://github.com/HCBravoLab/ribosonaldatabaseproject11.5
