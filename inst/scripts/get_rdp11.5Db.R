@@ -95,38 +95,27 @@ get_rdp_ids <- function(rdp_names){
 parse_rdp <- function(seq){
     rdp_names <- names(seq) %>% str_split("\t")
 
-    rdp_ids <- rdp_names %>%
-        map(1) %>%
-        str_split(pattern = " ", n = 2) %>%
-        transpose() %>%
-        set_names(c("ids","species")) %>%
-        map(flatten_chr)
+    rdp_ids <- sapply(rdp_names, function(rdpn) {
+        rdpn <- unlist(rdpn)
+        ids <- str_split(rdpn[1], pattern = " ", n=2, simplify=TRUE)
+        lineage <- str_split(str_replace(rdpn[2], "Lineage=",""), pattern = ";", simplify=TRUE)
+        c(ids, lineage)
+    })
 
-    rdp_lineage <- rdp_names %>%
-        map(2) %>%
-        str_replace("Lineage=","") %>%
-        str_split(";")
+    ids <- sapply(rdp_ids, function(rdpn) rdpn[1])
+    species <- sapply(rdp_ids, function(rdpn) rdpn[2])
+    rootrank <- sapply(rdp_ids, function(rdpn) rdpn[3])
+    domain <- sapply(rdp_ids, function(rdpn) rdpn[5])
+    phylum <- sapply(rdp_ids, function(rdpn) rdpn[7])
+    class <- sapply(rdp_ids, function(rdpn) rdpn[9])
+    subclass <- sapply(rdp_ids, function(rdpn) rdpn[11])
+    ord <- sapply(rdp_ids, function(rdpn) rdpn[13])
+    suborder <- sapply(rdp_ids, function(rdpn) rdpn[15])
+    family <- sapply(rdp_ids, function(rdpn) rdpn[17])
+    genus <- sapply(rdp_ids, function(rdpn) rdpn[19])
 
-    name_lineage <- function(lineage){
-        data.frame(rank = lineage[c(FALSE,TRUE)],
-                   taxa = lineage[c(TRUE,FALSE)],
-                   stringsAsFactors = FALSE)
-    }
-
-    lineage_df <- rdp_lineage %>%
-        set_names(rdp_ids$ids) %>%
-        map_df(name_lineage, .id = "Keys")
-
-    ## Returns wide data frame with desired taxa ordering
-    lineage_df %>%
-        mutate(taxa = str_trim(taxa, side = "both"),
-               taxa = str_replace_all(taxa, '\\"', "")) %>%
-        spread(rank, taxa) %>%
-        mutate(species = rdp_ids$species) %>%
-        select(Keys, rootrank, domain, phylum, class, subclass,
-               order, suborder, family, genus, species) %>%
-        ## Rename due to SQLite funciton name conflict
-        dplyr::rename(ord = order)
+    data.frame(Keys=ids, rootrank=rootrank, domain=domain, phylum=phylum, class=class, subclass=subclass,
+               ord=ord, suborder=suborder, family=family, genus=genus, species=species)
 }
 
 seqs <- c(readDNAStringSet(seq_bacteria_file),
