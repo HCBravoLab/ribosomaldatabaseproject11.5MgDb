@@ -10,7 +10,7 @@ library(Biostrings)
 library(metagenomeFeatures) ## Needed for the make_mgdb_sqlite function
 
 ## Database URL
-db_root_url <- "https://rdp.cme.msu.edu/download"
+db_root_url <- "http://rdp.cme.msu.edu/download"
 seq_bacteria_url <- paste0(db_root_url, "/current_Bacteria_unaligned.fa.gz")
 seq_archaea_url <- paste0(db_root_url, "/current_Archaea_unaligned.fa.gz")
 
@@ -95,38 +95,34 @@ get_rdp_ids <- function(rdp_names){
 parse_rdp <- function(seq){
     rdp_names <- names(seq) %>% str_split("\t")
 
-    rdp_ids <- rdp_names %>%
-        map(1) %>%
-        str_split(pattern = " ", n = 2) %>%
-        transpose() %>%
-        set_names(c("ids","species")) %>%
-        map(flatten_chr)
+    rdp_ids <- sapply(rdp_names, function(rdpn) {
+        rdpn <- unlist(rdpn)
+        ids <- str_split(rdpn[1], pattern = " ", n=2, simplify=TRUE)
+        lineage <- str_split(str_replace(rdpn[2], "Lineage=",""), pattern = ";", simplify=TRUE)
+        c(ids, lineage)
+    })
 
-    rdp_lineage <- rdp_names %>%
-        map(2) %>%
-        str_replace("Lineage=","") %>%
-        str_split(";")
-
-    name_lineage <- function(lineage){
-        data.frame(rank = lineage[c(FALSE,TRUE)],
-                   taxa = lineage[c(TRUE,FALSE)],
-                   stringsAsFactors = FALSE)
+    get_feature <- function(rr, feature) {
+        if(isTRUE(which(rr %in% feature) > 0)) {
+            return(rr[which(rr %in% feature) -1])
+        }
+        NULL
     }
 
-    lineage_df <- rdp_lineage %>%
-        set_names(rdp_ids$ids) %>%
-        map_df(name_lineage, .id = "Keys")
+    ids <- sapply(rdp_ids, function(rdpn) rdpn[1])
+    species <- sapply(rdp_ids, function(rdpn) rdpn[2])
+    rootrank <- sapply(rdp_ids, function(rdpn) rdpn[3])
+    domain <- sapply(rdp_ids, function(rdpn) get_feature(rdpn, "domain"))
+    phylum <- sapply(rdp_ids, function(rdpn) get_feature(rdpn, "phylum"))
+    class <- sapply(rdp_ids, function(rdpn) get_feature(rdpn, "class"))
+    subclass <- sapply(rdp_ids, function(rdpn) get_feature(rdpn, "subclass"))
+    ord <- sapply(rdp_ids, function(rdpn) get_feature(rdpn, "order"))
+    suborder <- sapply(rdp_ids, function(rdpn) get_feature(rdpn, "suborder"))
+    family <- sapply(rdp_ids, function(rdpn) get_feature(rdpn, "family"))
+    genus <- sapply(rdp_ids, function(rdpn) get_feature(rdpn, "genus"))
 
-    ## Returns wide data frame with desired taxa ordering
-    lineage_df %>%
-        mutate(taxa = str_trim(taxa, side = "both"),
-               taxa = str_replace_all(taxa, '\\"', "")) %>%
-        spread(rank, taxa) %>%
-        mutate(species = rdp_ids$species) %>%
-        select(Keys, rootrank, domain, phylum, class, subclass,
-               order, suborder, family, genus, species) %>%
-        ## Rename due to SQLite funciton name conflict
-        dplyr::rename(ord = order)
+    data.frame(Keys=ids, rootrank=rootrank, domain=domain, phylum=phylum, class=class, subclass=subclass,
+               ord=ord, suborder=suborder, family=family, genus=genus, species=species)
 }
 
 seqs <- c(readDNAStringSet(seq_bacteria_file),
@@ -160,7 +156,7 @@ taxa_tbl$Keys <- as.character(taxa_tbl$Keys)
 taxa_tbl <- dplyr::left_join(taxa_tbl, rnacentral_ids)
 
 ## Creating MgDb formated sqlite database
-metagenomeFeatures::make_mgdb_sqlite(db_name = "rdp11.5",
+metagenomeFeatures:::make_mgdb_sqlite(db_name = "rdp11.5",
                                      db_file = db_file,
                                      taxa_tbl = taxa_tbl,
                                      seqs = seqs)
