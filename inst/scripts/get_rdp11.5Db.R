@@ -8,21 +8,26 @@ library(stringr)
 library(DECIPHER)
 library(Biostrings)
 library(metagenomeFeatures) ## Needed for the make_mgdb_sqlite function
+library(R.utils)
+library(data.table)
+library(digest)
 
 ## Database URL
-db_root_url <- "http://rdp.cme.msu.edu/download"
+db_root_url <- "https://rdp.cme.msu.edu/download"
 seq_bacteria_url <- paste0(db_root_url, "/current_Bacteria_unaligned.fa.gz")
 seq_archaea_url <- paste0(db_root_url, "/current_Archaea_unaligned.fa.gz")
 
 ## RNAcentral ids - external to RDP
-rnacentral_url <- paste0("ftp://ftp.ebi.ac.uk/pub/databases/RNAcentral",
-                         "/releases/8.0/id_mapping/database_mappings/",
-                         "rdp.tsv")
+rnacentral_url <- "ftp://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/id_mapping/id_mapping.tsv.gz"
+rnacentral_md5_url <- "ftp://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/md5/md5.tsv.gz"
 
 ## Downloaded files
 seq_bacteria_file <- tempfile()
 seq_archaea_file <- tempfile()
+rnacentralgz_file <- tempfile()
 rnacentral_file <- tempfile()
+rnacentralgz_md5_file <- tempfile()
+rnacentral_md5_file <- tempfile()
 
 ## MD5 check sums from initial download
 seq_bacteria_md5 <- "c5f43e1285060bde2ca59a26bbd8b824"
@@ -35,7 +40,7 @@ metadata_file <- "../extdata/rdp11.5_metadata.RDS"
 
 ### Download database files ####################################################
 download_db <- function(url, file_name, md5){
-    ## Downloade file and check to make sure MD5 checksum matches checksum for
+    ## Download file and check to make sure MD5 checksum matches checksum for
     ## previously downloaded version
 
     download.file(url,file_name)
@@ -48,57 +53,25 @@ download_db(seq_bacteria_url, seq_bacteria_file, seq_bacteria_md5)
 download_db(seq_archaea_url, seq_archaea_file, seq_archaea_md5)
 
 ## RNAcentral data
-download_db(rnacentral_url, rnacentral_file, rnacentral_md5)
+##Directly downloading RNAcentral mapping file
+download.file(rnacentral_url, rnacentralgz_file)
+gunzip(filename = rnacentralgz_file, destname = rnacentral_file)
+
+##Downloading RNAcentral id to md5 mapping file
+download.file(rnacentral_md5_url, rnacentralgz_md5_file)
+gunzip(filename = rnacentralgz_md5_file, destname = rnacentral_md5_file)
 
 ### Create SQLite DB with Taxa and Seq Data ###################################
-### Parse RDP database files
-get_rdp_lineage <- function(rdp_names, rdp_ids){
-    rdp_lineage <- rdp_names %>% map(2) %>%
-        str_replace("Lineage=","") %>% str_split(";")
-
-    name_lineage <- function(lineage){
-        lin_rank <- lineage[c(FALSE,TRUE)]
-        lin_taxa <- lineage[c(TRUE,FALSE)]
-        data_frame(rank = lin_rank, taxa = lin_taxa)
-    }
-
-    rdp_lineage %>%
-        set_names(flatten_chr(rdp_ids$ids)) %>%
-        map_df(name_lineage, .id = "Key") %>%
-        spread(rank, taxa)
-        mutate(species = rdp_ids$species %>% flatten_chr())
-}
-
-get_rdp_lineage <- function(rdp_names, rdp_ids){
-    rdp_lineage <- rdp_names %>% map(2) %>%
-        str_replace("Lineage=","") %>% str_split(";")
-
-    name_lineage <- function(lineage){
-        lin_rank <- lineage[c(FALSE,TRUE)]
-        lin_taxa <- lineage[c(TRUE,FALSE)]
-        data_frame(rank = lin_rank, taxa = lin_taxa) %>%
-            filter(rank != "") %>% spread(rank, taxa)
-    }
-
-    rdp_lineage %>% map_df(name_lineage, .id = "Key") %>%
-    mutate(Key = rdp_ids$ids %>% flatten_chr(),
-           species = rdp_ids$species %>% flatten_chr())
-}
-
-get_rdp_ids <- function(rdp_names){
-    rdp_names %>% map(1) %>%
-        str_split(pattern = " ", n = 2) %>%
-        transpose() %>% set_names(c("ids","species"))
-}
-
-### Load seq files, seq files contain sequence and taxonomic lineage
+### Parse RDP database files - Load seq files,
+### seq files contain sequence and taxonomic lineage
 parse_rdp <- function(seq){
     rdp_names <- names(seq) %>% str_split("\t")
 
     rdp_ids <- sapply(rdp_names, function(rdpn) {
         rdpn <- unlist(rdpn)
         ids <- str_split(rdpn[1], pattern = " ", n=2, simplify=TRUE)
-        lineage <- str_split(str_replace(rdpn[2], "Lineage=",""), pattern = ";", simplify=TRUE)
+        lineage <- str_split(str_replace(rdpn[2], "Lineage=",""),
+                             pattern = ";", simplify=TRUE)
         c(ids, lineage)
     })
 
@@ -106,7 +79,7 @@ parse_rdp <- function(seq){
         if(isTRUE(which(rr %in% feature) > 0)) {
             return(rr[which(rr %in% feature) -1])
         }
-        NULL
+        ""
     }
 
     ids <- sapply(rdp_ids, function(rdpn) rdpn[1])
@@ -121,8 +94,10 @@ parse_rdp <- function(seq){
     family <- sapply(rdp_ids, function(rdpn) get_feature(rdpn, "family"))
     genus <- sapply(rdp_ids, function(rdpn) get_feature(rdpn, "genus"))
 
-    data.frame(Keys=ids, rootrank=rootrank, domain=domain, phylum=phylum, class=class, subclass=subclass,
-               ord=ord, suborder=suborder, family=family, genus=genus, species=species)
+    data.frame(Keys=ids, rootrank=rootrank, domain=domain,
+               phylum=phylum, class=class, subclass=subclass,
+               ord=ord, suborder=suborder, family=family,
+               genus=genus, species=species)
 }
 
 seqs <- c(readDNAStringSet(seq_bacteria_file),
@@ -131,29 +106,35 @@ seqs <- c(readDNAStringSet(seq_bacteria_file),
 ## formatting lineage into a table
 taxa_tbl <- parse_rdp(seqs)
 
-## creating seq RDS
+## renaming seqs to match taxonomy table
 names(seqs) <-  taxa_tbl$Keys
 
-## Load RNAcentral data
-rnacentral_ids <- read.delim(rnacentral_file,
-                             stringsAsFactors = FALSE,
-                             header = FALSE)
-
-colnames(rnacentral_ids) <- c("rnacentral_ids", "database",
-                              "Keys", "ncbi_tax_id",
-                              "RNA_type", "gene_name")
-
-## Dropping database, RNA_type, and gene_name columns
-rnacentral_ids$database <- NULL
-rnacentral_ids$RNA_type <- NULL
-rnacentral_ids$gene_name <- NULL
-
-## Converting ids to character strings - ensure compatible typing
-rnacentral_ids$Keys <- as.character(rnacentral_ids$Keys)
-taxa_tbl$Keys <- as.character(taxa_tbl$Keys)
-
 ## Adding RNAcentral and NCBI_tax ids to taxonomy table
-taxa_tbl <- dplyr::left_join(taxa_tbl, rnacentral_ids)
+add_rnacentral_mapping <- function(rnacentral_md5_file, rnacentral_file, taxa_tbl, seqs){
+    md5mapping <- fread(rnacentral_md5_file, sep = "\t", header = FALSE )
+    id_map <- fread(rnacentral_file, sep = "\t", header = FALSE )
+    new_idmap <- id_map[,c("V1","V4")]
+    dedup_idmap <- subset(new_idmap,!duplicated(new_idmap$V1))
+    dedup_idmap$digest <- md5mapping$V2[match(dedup_idmap$V1,md5mapping$V1)]
+    seqsdigest <- sapply(as.character(seqs), digest, algo = "md5",
+                         serialize = F)
+    seqsdigest_tbl <- as.data.frame(seqsdigest)
+    seqsdigest_tbl$Keys <- names(seqsdigest)
+    colnames(seqsdigest_tbl) <- c("md5digest", "Keys")
+    seqsdigest_tbl$RNAcentralID <- dedup_idmap$V1[match(seqsdigest_tbl$md5digest,
+                                                        dedup_idmap$digest)]
+    seqsdigest_tbl$NCBItaxonID <- dedup_idmap$V4[match(seqsdigest_tbl$md5digest,
+                                                       dedup_idmap$digest)]
+    taxa_tbl$RNAcentralID <- seqsdigest_tbl$RNAcentralID[match(taxa_tbl$Keys,
+                                                               seqsdigest_tbl$Keys)]
+    taxa_tbl$NCBItaxonID <- seqsdigest_tbl$NCBItaxonID[match(taxa_tbl$Keys,
+                                                             seqsdigest_tbl$Keys)]
+    ## Return as a data.frame
+    data.frame(taxa_tbl)
+}
+
+taxa_tbl <- add_rnacentral_mapping(rnacentral_md5_file, rnacentral_file,
+                                   taxa_tbl, seqs)
 
 ## Creating MgDb formated sqlite database
 metagenomeFeatures:::make_mgdb_sqlite(db_name = "rdp11.5",
